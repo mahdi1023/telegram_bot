@@ -7,7 +7,7 @@ import urllib.error
 from telegram import Update, WebAppInfo, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 
-# ─── تنظیمات ───────────────────────────────────────────────
+# ث─── تنظیمات ───────────────────────────────────────────────
 BOT_TOKEN    = "8767855704:AAEir-uPTLu3w1wdtKteDSBSeoT_XPStz4I"
 CHANNEL_ID   = "@melkpelk1"
 MINI_APP_URL = "https://melk-liard.vercel.app"
