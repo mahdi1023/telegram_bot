@@ -823,14 +823,12 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if text == "👤 پروفایل من":
         upsert_user(user)
-        advisor = get_advisor(user.id)
-        buttons = []
-        if advisor and advisor.get("is_active"):
-            buttons.append([InlineKeyboardButton("🏛 پنل مشاور", web_app=WebAppInfo(url=ADVISOR_URL))])
-        buttons.append([InlineKeyboardButton("🏠 پنل متقاضی", web_app=WebAppInfo(url=OWNER_URL))])
         await update.message.reply_text(
             "کدام پنل را می‌خواهید باز کنید؟",
-            reply_markup=InlineKeyboardMarkup(buttons)
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🏛 پنل مشاور", web_app=WebAppInfo(url=ADVISOR_URL))],
+                [InlineKeyboardButton("🏠 پنل متقاضی", web_app=WebAppInfo(url=OWNER_URL))],
+            ])
         )
         return
 
