@@ -383,6 +383,56 @@ async def report_reason(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("شکایت شما ثبت شد!\n\nتیم مدیریت بررسی خواهد کرد.", reply_markup=kbd_main())
     return ConversationHandler.END
 
+# ─── ساخت متن کانال ───────────────────────────────────────
+def build_channel_text(r, code):
+    reqs = r.get("requirements", "")
+    reqs_txt = "\n".join([f"  • {x.strip()}" for x in reqs.split(",") if x.strip()]) or "  • —"
+    desc = (r.get("description") or "").strip()
+    desc_block = f"\n\n📝 <b>توضیحات</b>\n{html_esc(desc)}" if desc else ""
+    return (
+        "🏛 <b>درخواست جدید</b>  ·  ملک‌یاب\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📋 <b>مشخصات ملک</b>\n"
+        f"  📍 موقعیت: <b>{html_esc(r.get('location'))}</b>\n"
+        f"  🏗 نوع: {html_esc(r.get('property_type'))}\n"
+        f"  🎯 هدف: {html_esc(r.get('purpose'))}\n\n"
+        "💰 <b>بودجه و متراژ</b>\n"
+        f"  💵 بودجه: {html_esc(r.get('budget'))}\n"
+        f"  📐 متراژ: {html_esc(r.get('area'))}\n"
+        f"  🛏 اتاق: {html_esc(r.get('rooms'))}\n"
+        f"  🏢 طبقه: {html_esc(r.get('floor'))}\n\n"
+        f"✅ <b>الزامات</b>\n{reqs_txt}{desc_block}\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        f"🔖 کد درخواست: <code>{code}</code>"
+    )
+
+# ─── Channel Edit Poller ───────────────────────────────────
+async def channel_edit_poller(context):
+    rows = sb("GET", "requests", params="?needs_channel_update=eq.true&channel_message_id=not.is.null&select=*")
+    if not rows:
+        return
+    bot_me = await context.bot.get_me()
+    for r in rows:
+        code = r["unique_code"]
+        try:
+            new_text = build_channel_text(r, code)
+            await context.bot.edit_message_text(
+                chat_id=CHANNEL_ID,
+                message_id=r["channel_message_id"],
+                text=new_text,
+                parse_mode="HTML",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton(
+                        "📲 مشاهده اطلاعات متقاضی",
+                        url=f"https://t.me/{bot_me.username}?start=code_{code}"
+                    )
+                ]])
+            )
+        except Exception as e:
+            logger.error(f"channel edit error {code}: {e}")
+        finally:
+            sb("PATCH", "requests", {"needs_channel_update": False}, f"?unique_code=eq.{code}")
+
 # ─── OTP و مشاور ──────────────────────────────────────────
 async def otp_poller(context):
     """
@@ -913,11 +963,12 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_validity_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-    # OTP Poller
+    # Pollers
     if app.job_queue:
         app.job_queue.run_repeating(otp_poller, interval=5, first=5)
+        app.job_queue.run_repeating(channel_edit_poller, interval=30, first=10)
     else:
-        logger.warning("JobQueue not available. OTP polling disabled.")
+        logger.warning("JobQueue not available. Polling disabled.")
 
     logger.info("Bot started...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
